@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>User Login / Register</h2>
+<p>Enter your email and password. New users will be automatically registered.</p>
+<form method="POST">
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" name="email" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" name="password" required>
+    </div>
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+    <hr>
+    {% if google_signin_available %}
+    <p>Or sign in with Google:</p>
+    <a href="{{ url_for('google.login') }}" class="btn btn-danger">Sign in with Google</a>
+    {% else %}
+    <p class="text-muted">Google sign-in is not available on this server.</p>
+    {% endif %}
+{% endblock %}
