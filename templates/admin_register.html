@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Register New Admin</h2>
+<form method="POST">
+    <div class="mb-3">
+        <label class="form-label">Username</label>
+        <input type="text" class="form-control" name="username" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <input type="password" class="form-control" name="password" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Role</label>
+        <select class="form-select" name="role" required>
+            <option value="hospital">Hospital Admin</option>
+            <option value="super">Super Admin</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Hospital (leave blank for Super Admin)</label>
+        <input type="text" class="form-control" name="hospital" placeholder="e.g. City Hospital">
+    </div>
+    <button type="submit" class="btn btn-primary">Create Admin</button>
+</form>
+{% endblock %}
