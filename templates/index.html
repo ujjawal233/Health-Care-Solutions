@@ -13,12 +13,23 @@
         <input type="email" class="form-control" name="email" required>
     </div>
     <div class="mb-3">
-        <label class="form-label">Doctor</label>
-        <select class="form-select" name="doctor" required>
-            {% for d in doctors %}
-            <option value="{{ d[0] }}">{{ d[0] }} ({{ d[1] }})</option>
+        <label class="form-label">Specialization</label>
+        <select class="form-select" id="specialization" required>
+            <option value="" disabled selected>Select specialization</option>
+            {% for spec in specializations %}
+                <option value="{{ spec }}">{{ spec }}</option>
             {% endfor %}
         </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Doctor</label>
+        <select class="form-select" name="doctor" id="doctor" required>
+            <option value="" disabled selected>Select specialization first</option>
+        </select>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Location (near you)</label>
+        <input type="text" class="form-control" id="location" name="location" placeholder="Type your preferred location" required>
     </div>
     <div class="mb-3">
         <label class="form-label">Date</label>
@@ -26,4 +37,59 @@
     </div>
     <button type="submit" class="btn btn-primary">Book</button>
 </form>
+
+<script>
+    const doctors = [
+        {% for d in doctors %}
+        { name: {{ d[0]|tojson }}, specialization: {{ d[1]|tojson }}, location: {{ d[2]|tojson }} },
+        {% endfor %}
+    ];
+
+    const specializationSelect = document.getElementById('specialization');
+    const doctorSelect = document.getElementById('doctor');
+    const locationInput = document.getElementById('location');
+
+    function populateDoctors() {
+        const spec = specializationSelect.value;
+        const location = locationInput.value.trim().toLowerCase();
+        doctorSelect.innerHTML = '';
+
+        const filtered = doctors.filter(d => {
+            const matchesSpec = d.specialization === spec;
+            const matchesLocation = location === '' || (d.location || '').toLowerCase().includes(location);
+            return matchesSpec && matchesLocation;
+        });
+
+        if (filtered.length === 0) {
+            const opt = document.createElement('option');
+            opt.text = 'No doctors match this specialization/location';
+            opt.disabled = true;
+            opt.selected = true;
+            doctorSelect.add(opt);
+            return;
+        }
+
+        const placeholder = document.createElement('option');
+        placeholder.text = 'Select doctor';
+        placeholder.value = '';
+        placeholder.disabled = true;
+        placeholder.selected = true;
+        doctorSelect.add(placeholder);
+
+        filtered.forEach(d => {
+            const opt = document.createElement('option');
+            opt.value = d.name;
+            opt.text = `${d.name} (${d.location || 'Location not set'})`;
+            doctorSelect.add(opt);
+        });
+    }
+
+    specializationSelect.addEventListener('change', populateDoctors);
+    locationInput.addEventListener('input', populateDoctors);
+
+    // initialize doctor list if specialization is already preselected
+    if (specializationSelect.value) {
+        populateDoctors();
+    }
+</script>
 {% endblock %}
