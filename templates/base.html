@@ -12,13 +12,21 @@
     <div class="ms-auto">
         {% if session.get('admin') %}
             <a href="/dashboard" class="btn btn-light">Dashboard</a>
+            {% if session.get('admin_role') == 'super' %}
+                <a href="/admin_register" class="btn btn-light">Add Admin</a>
+            {% endif %}
+            <a href="/logout" class="btn btn-danger">Logout</a>
+        {% elif session.get('doctor') %}
+            <span class="navbar-text text-white me-2">Doctor: {{ session.doctor_name }}</span>
+            <a href="/doctor_dashboard" class="btn btn-light">My Appointments</a>
             <a href="/logout" class="btn btn-danger">Logout</a>
         {% elif session.get('user') %}
             <span class="navbar-text text-white me-2">Logged in as {{ session.user }}</span>
             <a href="/logout" class="btn btn-danger">Logout</a>
         {% else %}
             <a href="/user_login" class="btn btn-light me-2">User Login</a>
-            <a href="/login" class="btn btn-light">Admin Login</a>
+            <a href="/login" class="btn btn-light me-2">Admin Login</a>
+            <a href="/doctor_login" class="btn btn-light">Doctor Login</a>
         {% endif %}
     </div>
 </nav>
