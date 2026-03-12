@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<h2>Doctor Dashboard</h2>
+<p>Logged in as <strong>{{ doctor_name }}</strong> (Hospital: {{ doctor_hospital }})</p>
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Patient</th>
+            <th>Email</th>
+            <th>Date</th>
+            <th>Location</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for appt in appointments %}
+        <tr>
+            <td>{{ appt[0] }}</td>
+            <td>{{ appt[1] }}</td>
+            <td>{{ appt[2] }}</td>
+            <td>{{ appt[4] }}</td>
+            <td>{{ appt[5] }}</td>
+            <td>
+                <a href="/doctor_edit/{{ appt[0] }}" class="btn btn-sm btn-primary">Edit</a>
+                <a href="/doctor_cancel/{{ appt[0] }}" class="btn btn-sm btn-danger" onclick="return confirm('Cancel this appointment?');">Cancel</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="6" class="text-center">No appointments found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
