@@ -8,6 +8,7 @@
 </header>
 
 <form method="POST" action="{{ url_for('book') }}" class="needs-validation" novalidate>
+    {{ csrf_input() }}
     <div class="row g-3">
         <div class="col-md-6">
             <label class="form-label">Name</label>

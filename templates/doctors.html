@@ -8,6 +8,7 @@
  </div>
 
 <form method="POST" action="{{ url_for('doctors') }}">
+    {{ csrf_input() }}
     <div class="mb-3">
         <label class="form-label">Name</label>
         <input type="text" class="form-control" name="name" required>
@@ -61,7 +62,7 @@
             <td>{{ d[5] or '' }}</td>
             <td>
                 <form method="POST" action="{{ url_for('delete_doctor', id=d[0]) }}" class="d-inline">
-                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                    {{ csrf_input() }}
                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this doctor?');">Delete</button>
                 </form>
             </td>
@@ -98,11 +99,11 @@
             <td>{{ d[5] or '' }}</td>
             <td>
                     <form method="POST" action="{{ url_for('restore_doctor', id=d[0]) }}" class="d-inline">
-                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                            {{ csrf_input() }}
                         <button type="submit" class="btn btn-success btn-sm">Restore</button>
                     </form>
                     <form method="POST" action="{{ url_for('purge_doctor', id=d[0]) }}" class="d-inline">
-                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                            {{ csrf_input() }}
                         <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently remove this doctor (and any related appointments)?');">Remove</button>
                     </form>
             </td>

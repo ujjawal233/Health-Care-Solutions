@@ -30,7 +30,7 @@
             <td>
                 <a href="{{ url_for('doctor_edit', id=appt[0]) }}" class="btn btn-sm btn-primary">Edit</a>
                 <form method="POST" action="{{ url_for('doctor_cancel', id=appt[0]) }}" class="d-inline">
-                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                    {{ csrf_input() }}
                     <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancel this appointment?');">Cancel</button>
                 </form>
             </td>

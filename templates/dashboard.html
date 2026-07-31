@@ -47,7 +47,7 @@
             <td>{{ appt[4] }}</td>
             <td>
                 <form method="POST" action="{{ url_for('delete', id=appt[0]) }}" class="d-inline">
-                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                    {{ csrf_input() }}
                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this appointment?');">Delete</button>
                 </form>
             </td>
