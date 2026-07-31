@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: healthcare-app
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: "gunicorn -c gunicorn_config.py app:app"
+    envVars:
+      - key: DATABASE_URL
+      - key: SECRET_KEY
+      - key: EMAIL_USER
+      - key: EMAIL_PASSWORD

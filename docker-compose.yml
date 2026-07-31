@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./:/app:delegated
+      - ./healthcare.db:/app/healthcare.db
+    restart: always
+    command: gunicorn -c gunicorn_config.py app:app

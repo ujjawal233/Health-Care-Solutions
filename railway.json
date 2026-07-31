@@ -1,0 +1,8 @@
+{
+  "name": "healthcare-app",
+  "start": "gunicorn -c gunicorn_config.py app:app",
+  "env": {
+    "PORT": "8000",
+    "DATABASE_URL": "sqlite:///./healthcare.db"
+  }
+}
