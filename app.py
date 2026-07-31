@@ -5,6 +5,13 @@ import smtplib
 from email.mime.text import MIMEText
 import os
 import datetime
+import logging
+import re
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 try:
     from flask_dance.contrib.google import make_google_blueprint, google
 except Exception:
@@ -13,10 +20,11 @@ except Exception:
 
 
 # configure these for your SMTP server (Gmail example)
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-EMAIL_HOST_USER = 'youremail@gmail.com'     # replace with real sender
-EMAIL_HOST_PASSWORD = 'yourpassword'        # app password or real password
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_PASSWORD')
+DEFAULT_ADMIN_PASSWORD = os.getenv('DEFAULT_ADMIN_PASSWORD', 'ChangeMe123!')
 
 
 def send_email(to_address: str, subject: str, body: str):
@@ -35,7 +43,59 @@ def send_email(to_address: str, subject: str, body: str):
     print(f"Email sent to {to_address}")
 
 app = Flask(__name__)
-app.secret_key = "super_secret_key"
+# Never hardcode secret keys. Production should load this from .env
+app.secret_key = os.getenv("SECRET_KEY", os.urandom(24))
+
+# configure basic logging for the application
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
+
+
+# ===================================================
+# Purpose: Return a sqlite3 connection to the application database.
+# Parameters: None
+# Returns: sqlite3.Connection connected to `healthcare.db`
+# ===================================================
+def get_db_connection():
+    conn = get_db_connection()
+    return conn
+
+
+# ===================================================
+# Purpose: Validate a simple email address format.
+# Parameters: email (str)
+# Returns: bool -> True when email looks valid
+# ===================================================
+def validate_email(email: str) -> bool:
+    if not email:
+        return False
+    # simple regex for basic validation - not exhaustive
+    pattern = r"^[\w\.-]+@[\w\.-]+\.[a-zA-Z]{2,}$"
+    return re.match(pattern, email) is not None
+
+
+# ===================================================
+# Error Handler: 404 Not Found
+# Purpose: Provide a simple response for missing pages and log occurrence.
+# Parameters: exception
+# Returns: (str, 404)
+# ===================================================
+@app.errorhandler(404)
+def handle_404(err):
+    logger.warning(f"404 Not Found: {request.path}")
+    return "404 Not Found", 404
+
+
+# ===================================================
+# Error Handler: 500 Internal Server Error
+# Purpose: Log exception and return a safe generic message to clients.
+# Parameters: exception
+# Returns: (str, 500)
+# ===================================================
+@app.errorhandler(500)
+def handle_500(err):
+    logger.exception("Internal server error: %s", err)
+    return "Internal Server Error", 500
 
 # --- Google OAuth (optional) ---
 if make_google_blueprint:
@@ -51,8 +111,14 @@ if make_google_blueprint:
     app.register_blueprint(google_bp, url_prefix="/login")
 
 # ---------------- DATABASE INIT ----------------
+# ===================================================
+# Function: init_db
+# Purpose: Ensure the database schema exists and perform idempotent migrations.
+# Parameters: None
+# Returns: None
+# ===================================================
 def init_db():
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     cursor.execute('''
@@ -107,16 +173,6 @@ def init_db():
         cursor.execute('ALTER TABLE doctors ADD COLUMN email TEXT')
     if 'password' not in columns:
         cursor.execute('ALTER TABLE doctors ADD COLUMN password TEXT')
-
-    # Make sure existing doctors have a hospital column
-    cursor.execute("PRAGMA table_info(doctors)")
-    columns = [row[1] for row in cursor.fetchall()]
-    if 'hospital' not in columns:
-        cursor.execute('ALTER TABLE doctors ADD COLUMN hospital TEXT')
-
-    # Add missing columns if the DB already exists
-    cursor.execute("PRAGMA table_info(doctors)")
-    columns = [row[1] for row in cursor.fetchall()]
     if 'location' not in columns:
         cursor.execute('ALTER TABLE doctors ADD COLUMN location TEXT')
     if 'is_active' not in columns:
@@ -142,12 +198,6 @@ def init_db():
     if 'doctor_hospital' not in appointment_columns:
         cursor.execute('ALTER TABLE appointments ADD COLUMN doctor_hospital TEXT')
 
-    # Add missing columns for existing databases
-    cursor.execute("PRAGMA table_info(appointments)")
-    appointment_columns = [row[1] for row in cursor.fetchall()]
-    if 'location' not in appointment_columns:
-        cursor.execute('ALTER TABLE appointments ADD COLUMN location TEXT')
-
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -159,14 +209,15 @@ def init_db():
     # Default super-admin
     cursor.execute("SELECT * FROM admins WHERE username='admin'")
     if not cursor.fetchone():
-        hashed = generate_password_hash("1234")
+        hashed = generate_password_hash(DEFAULT_ADMIN_PASSWORD)
         cursor.execute("INSERT INTO admins (username,password,hospital,role) VALUES (?,?,?,?)", ("admin", hashed, "Default Hospital", "super"))
+    conn.commit()
     conn.close()
 
 # ---------------- HOME ----------------
 @app.route('/')
 def home():
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     # fetch active doctors only (so people don’t book inactive ones)
     cursor.execute("SELECT name, specialization, location FROM doctors WHERE is_active=1")
@@ -184,6 +235,12 @@ def home():
 
 # Ensure DB schema exists even if the app is imported elsewhere (and for tests)
 # (No-op if already initialized.)
+# ===================================================
+# Hook: before_request
+# Purpose: Ensure the database is initialized before handling requests.
+# Parameters: None
+# Returns: None
+# ===================================================
 @app.before_request
 def _ensure_db_initialized():
     # init_db is idempotent (CREATE TABLE IF NOT EXISTS + column checks)
@@ -191,6 +248,12 @@ def _ensure_db_initialized():
 
 
 # ---------------- BOOK ----------------
+# ===================================================
+# Route: /book
+# Purpose: Create a new appointment booking for a patient.
+# Parameters: form fields `name`, `email`, `doctor`, `date`, `location`
+# Returns: Redirect to home with flash messages indicating success/failure
+# ===================================================
 @app.route('/book', methods=['POST'])
 def book():
     # Use .get() to avoid BadRequestKeyError when the browser submits without required fields
@@ -204,21 +267,37 @@ def book():
         flash('Please fill all booking fields and select a doctor.')
         return redirect('/')
 
+    try:
+        appointment_date = datetime.date.fromisoformat(date)
+    except ValueError:
+        flash('Please select a valid appointment date.')
+        return redirect('/')
+
+    if appointment_date < datetime.date.today():
+        flash('Cannot book appointments in the past.')
+        return redirect('/')
 
     # determine doctor hospital so admin sees only relevant appointments
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute("SELECT hospital FROM doctors WHERE name=?", (doctor,))
     row = cursor.fetchone()
-    doctor_hospital = row[0] if row else ''
-
     if not row:
         conn.close()
         flash('Selected doctor is not available. Please choose a valid doctor.')
         return redirect('/')
 
-    data = (name, email, doctor, doctor_hospital, date, location)
+    doctor_hospital = row[0]
+    cursor.execute(
+        "SELECT id FROM appointments WHERE email=? AND doctor=? AND date=?",
+        (email, doctor, date)
+    )
+    if cursor.fetchone():
+        conn.close()
+        flash('Appointment already exists for this doctor and date.')
+        return redirect('/')
 
+    data = (name, email, doctor, doctor_hospital, date, location)
     cursor.execute("INSERT INTO appointments (name,email,doctor,doctor_hospital,date,location) VALUES (?,?,?,?,?,?)", data)
     conn.commit()
     conn.close()
@@ -237,6 +316,12 @@ def book():
     return redirect('/')
 
 # ---------------- LOGIN ----------------
+# ===================================================
+# Route: /login
+# Purpose: Authenticate an admin user and establish admin session context.
+# Parameters: form fields `username`, `password` (POST)
+# Returns: Redirect to `/dashboard` on success or render login template
+# ===================================================
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
@@ -261,6 +346,12 @@ def login():
     return render_template('login.html')
 
 
+# ===================================================
+# Route: /admin_register
+# Purpose: Allow super-admin to create new admin accounts for hospitals.
+# Parameters: form fields `username`, `password`, `role`, optional `hospital`
+# Returns: Redirect to `/dashboard` after creating admin
+# ===================================================
 @app.route('/admin_register', methods=['GET', 'POST'])
 def admin_register():
     if 'admin' not in session or session.get('admin_role') != 'super':
@@ -291,6 +382,12 @@ def admin_register():
     return render_template('admin_register.html')
 
 
+# ===================================================
+# Route: /doctor_login
+# Purpose: Authenticate a doctor by email/password and set session info.
+# Parameters: form fields `email`, `password` (POST)
+# Returns: Redirect to `/doctor_dashboard` on success or render form
+# ===================================================
 @app.route('/doctor_login', methods=['GET', 'POST'])
 def doctor_login():
     if request.method == 'POST':
@@ -314,6 +411,12 @@ def doctor_login():
     return render_template('doctor_login.html')
 
 
+# ===================================================
+# Route: /doctor_reset
+# Purpose: Allow doctors to reset their password by email.
+# Parameters: form fields `email`, `password` (POST)
+# Returns: Redirect to `/doctor_login` with status flash
+# ===================================================
 @app.route('/doctor_reset', methods=['GET', 'POST'])
 def doctor_reset():
     if request.method == 'POST':
@@ -335,6 +438,12 @@ def doctor_reset():
     return render_template('doctor_reset.html')
 
 
+# ===================================================
+# Route: /doctor_dashboard
+# Purpose: Show authenticated doctor's appointments and context.
+# Parameters: Session `doctor`, `doctor_name`, `doctor_hospital`
+# Returns: Render `doctor_dashboard.html` with appointment list
+# ===================================================
 @app.route('/doctor_dashboard')
 def doctor_dashboard():
     if 'doctor' not in session:
@@ -343,7 +452,7 @@ def doctor_dashboard():
     doctor_name = session.get('doctor_name')
     doctor_hospital = session.get('doctor_hospital')
 
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('''
         SELECT id, name, email, doctor, date, location, doctor_hospital
@@ -360,12 +469,18 @@ def doctor_dashboard():
                            appointments=appointments)
 
 
+# ===================================================
+# Route: /doctor_cancel/<id>
+# Purpose: Allow doctor to cancel their own appointment by id.
+# Parameters: `id` (int) path parameter
+# Returns: Redirect to `/doctor_dashboard`
+# ===================================================
 @app.route('/doctor_cancel/<int:id>')
 def doctor_cancel(id):
     if 'doctor' not in session:
         return redirect('/doctor_login')
 
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     # ensure doctor owns this appointment
     cursor.execute("SELECT doctor, doctor_hospital FROM appointments WHERE id=?", (id,))
@@ -377,12 +492,18 @@ def doctor_cancel(id):
     return redirect('/doctor_dashboard')
 
 
+# ===================================================
+# Route: /doctor_edit/<id>
+# Purpose: Allow doctor to edit their appointment's date/location.
+# Parameters: `id` (int), form `date`, `location` (POST)
+# Returns: Render edit form (GET) or redirect to `/doctor_dashboard` (POST)
+# ===================================================
 @app.route('/doctor_edit/<int:id>', methods=['GET', 'POST'])
 def doctor_edit(id):
     if 'doctor' not in session:
         return redirect('/doctor_login')
 
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
     cursor.execute('SELECT id, name, email, doctor, date, location, doctor_hospital FROM appointments WHERE id=?', (id,))
     appointment = cursor.fetchone()
@@ -404,6 +525,12 @@ def doctor_edit(id):
 
 
 # ---------------- USER LOGIN/REGISTER ----------------
+# ===================================================
+# Route: /user_login
+# Purpose: Authenticate or register a patient user via email/password.
+# Parameters: form fields `email`, `password` (POST)
+# Returns: Redirect to home on success or render login page
+# ===================================================
 @app.route('/user_login', methods=['GET','POST'])
 def user_login():
     # simple form where email/password authenticates or registers new user
@@ -438,6 +565,12 @@ def user_login():
 
     return render_template('user_login.html', google_signin_available=(make_google_blueprint is not None))
 
+# ===================================================
+# Route: /logout
+# Purpose: Clear session context for all user roles.
+# Parameters: None
+# Returns: Redirect to home `/`
+# ===================================================
 @app.route('/logout')
 def logout():
     # clear all session roles
@@ -451,6 +584,12 @@ def logout():
 
 
 # Google OAuth callback handler (works when Flask-Dance is installed)
+# ===================================================
+# Route: /google_login
+# Purpose: Handle OAuth callback for Google sign-in (Flask-Dance).
+# Parameters: None (uses Flask-Dance internals)
+# Returns: Redirects to home on success or `/user_login` on failure
+# ===================================================
 @app.route('/google_login')
 def google_login():
     if make_google_blueprint is None or google is None:
@@ -486,12 +625,18 @@ def google_login():
     return redirect('/user_login')
 
 # ---------------- DASHBOARD ----------------
+# ===================================================
+# Route: /dashboard
+# Purpose: Admin dashboard showing counts and appointment lists per role.
+# Parameters: Session `admin`, `admin_role`, `hospital`
+# Returns: Render `dashboard.html` with aggregated data
+# ===================================================
 @app.route('/dashboard')
 def dashboard():
     if 'admin' not in session:
         return redirect('/login')
 
-    conn = sqlite3.connect('healthcare.db')
+    conn = get_db_connection()
     cursor = conn.cursor()
 
     if session.get('admin_role') == 'super':
@@ -548,8 +693,16 @@ def dashboard():
                            hospital_report=hospital_report)
 
 # ---------------- DELETE ----------------
-@app.route('/delete/<int:id>')
+# ===================================================
+# Route: /delete/<id>
+# Purpose: Allow admin to delete an appointment by id (POST only).
+# Parameters: `id` (int)
+# Returns: Redirect to `/dashboard`
+# ===================================================
+@app.route('/delete/<int:id>', methods=['POST'])
 def delete(id):
+    if 'admin' not in session:
+        return redirect('/login')
     conn = sqlite3.connect('healthcare.db')
     cursor = conn.cursor()
     cursor.execute("DELETE FROM appointments WHERE id=?", (id,))
@@ -557,8 +710,16 @@ def delete(id):
     conn.close()
     return redirect('/dashboard')
 
+# ===================================================
+# Route: /delete_doctor/<id>
+# Purpose: Soft-delete a doctor (mark inactive) by id.
+# Parameters: `id` (int)
+# Returns: Redirect to `/doctors`
+# ===================================================
 @app.route('/delete_doctor/<int:id>')
 def delete_doctor(id):
+    if 'admin' not in session:
+        return redirect('/login')
     conn = sqlite3.connect('healthcare.db')
     cursor = conn.cursor()
     # Soft-delete: mark doctor inactive so it can be restored.
@@ -567,6 +728,12 @@ def delete_doctor(id):
     conn.close()
     return redirect('/doctors')
 
+# ===================================================
+# Route: /doctors_all
+# Purpose: Admin-only view to list all doctors across hospitals.
+# Parameters: None
+# Returns: Render `doctors.html` with full doctor list
+# ===================================================
 @app.route('/doctors_all')
 def doctors_all():
     if 'admin' not in session:
@@ -580,6 +747,12 @@ def doctors_all():
 
     return render_template('doctors.html', doctors=data, audit=[])
 
+# ===================================================
+# Route: /restore_doctor/<id>
+# Purpose: Restore a soft-deleted doctor (set active) by id.
+# Parameters: `id` (int)
+# Returns: Redirect to `/doctors`
+# ===================================================
 @app.route('/restore_doctor/<int:id>')
 def restore_doctor(id):
     conn = sqlite3.connect('healthcare.db')
@@ -589,6 +762,12 @@ def restore_doctor(id):
     conn.close()
     return redirect('/doctors')
 
+# ===================================================
+# Route: /purge_doctor/<id>
+# Purpose: Permanently delete a doctor and their appointments, with audit.
+# Parameters: `id` (int)
+# Returns: Redirect to `/doctors`
+# ===================================================
 @app.route('/purge_doctor/<int:id>')
 def purge_doctor(id):
     conn = sqlite3.connect('healthcare.db')
@@ -609,6 +788,12 @@ def purge_doctor(id):
     return redirect('/doctors')
 
 # ---------------- DOCTORS ----------------
+# ===================================================
+# Route: /doctors
+# Purpose: Manage doctors for the admin's hospital; supports create and list.
+# Parameters: form fields for creating doctor (POST)
+# Returns: Render `doctors.html` with hospital-specific doctors and audit
+# ===================================================
 @app.route('/doctors', methods=['GET','POST'])
 def doctors():
     if 'admin' not in session:
@@ -653,10 +838,6 @@ def doctors():
 
     cursor.execute("SELECT id, doctor_id, doctor_name, action, admin_username, timestamp FROM doctor_audit WHERE doctor_hospital=? ORDER BY timestamp DESC LIMIT 25", (session.get('hospital'),))
     audit = cursor.fetchall()
-
-    conn.close()
-
-    return render_template('doctors.html', doctors=data, audit=audit)
 
     conn.close()
 

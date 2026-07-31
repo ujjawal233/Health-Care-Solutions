@@ -27,7 +27,11 @@
             <td>{{ appt[6] }}</td>
             <td>{{ appt[5] }}</td>
             <td>{{ appt[4] }}</td>
-            <td><a href="/delete/{{ appt[0] }}" class="btn btn-danger btn-sm">Delete</a></td>
+            <td>
+                <form method="POST" action="/delete/{{ appt[0] }}" class="d-inline">
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this appointment?');">Delete</button>
+                </form>
+            </td>
         </tr>
         {% endfor %}
     </tbody>
