@@ -29,7 +29,7 @@
         </div>
         <div class="col-md-6">
             <label class="form-label">Doctor</label>
-            <select class="form-select" name="doctor" id="doctor" required aria-label="Doctor selection">
+            <select class="form-select" name="doctor_id" id="doctor" required aria-label="Doctor selection">
                 <option value="" disabled selected>Select specialization first</option>
             </select>
         </div>
@@ -50,7 +50,7 @@
 <script>
     const doctors = [
         {% for d in doctors %}
-        { name: {{ d[0]|tojson }}, specialization: {{ d[1]|tojson }}, location: {{ d[2]|tojson }} },
+        { id: {{ d.id|tojson }}, name: {{ d.name|tojson }}, specialization: {{ d.specialization|tojson }}, location: {{ d.location|default('')|tojson }} },
         {% endfor %}
     ];
 
@@ -87,7 +87,7 @@
 
         filtered.forEach(d => {
             const opt = document.createElement('option');
-            opt.value = d.name;
+            opt.value = d.id;
             opt.text = `${d.name} (${d.location || 'Location not set'})`;
             doctorSelect.add(opt);
         });

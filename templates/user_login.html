@@ -17,7 +17,7 @@
     <button type="submit" class="btn btn-primary">Submit</button>
 </form>
     <hr>
-    {% if google_signin_available %}
+    {% if google_oauth_enabled %}
     <p>Or sign in with Google:</p>
     <a href="{{ url_for('google.login') }}" class="btn btn-danger">Sign in with Google</a>
     {% else %}

@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+
+{% block title %}Audit Logs{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Audit Logs</h2>
+        <p class="text-muted">Review system actions performed by admins.</p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Actor</th>
+                    <th>Role</th>
+                    <th>Action</th>
+                    <th>Target</th>
+                    <th>IP Address</th>
+                    <th>User Agent</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td>{{ log.timestamp }}</td>
+                    <td>{{ log.actor }}</td>
+                    <td>{{ log.role }}</td>
+                    <td>{{ log.action }}</td>
+                    <td>{{ log.target }}</td>
+                    <td>{{ log.ip_address or '-' }}</td>
+                    <td>{{ log.user_agent or '-' }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted">No audit logs available.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

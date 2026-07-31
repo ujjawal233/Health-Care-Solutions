@@ -9,31 +9,40 @@
 
 <form method="POST" action="{{ url_for('doctors') }}">
     {{ csrf_input() }}
-    <div class="mb-3">
-        <label class="form-label">Name</label>
-        <input type="text" class="form-control" name="name" required>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Specialization</label>
-        <input type="text" class="form-control" name="specialization" required>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Location</label>
-        <input type="text" class="form-control" name="location" placeholder="e.g. Building A, Room 302">
-    </div>
-    {% if session.get('admin_role') == 'super' %}
-    <div class="mb-3">
-        <label class="form-label">Hospital</label>
-        <input type="text" class="form-control" name="hospital" placeholder="Assign to hospital (optional)">
-    </div>
-    {% endif %}
-    <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input type="email" class="form-control" name="email" placeholder="doctor@example.com" required>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Doctor Password</label>
-        <input type="password" class="form-control" name="password" placeholder="Set a password" required>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" name="name" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Specialization</label>
+            <input type="text" class="form-control" name="specialization" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Location</label>
+            <input type="text" class="form-control" name="location" placeholder="e.g. Building A, Room 302">
+        </div>
+        {% if session.get('admin_role') == 'super' %}
+        <div class="col-md-6">
+            <label class="form-label">Hospital</label>
+            <input type="text" class="form-control" name="hospital" placeholder="Assign to hospital (optional)">
+        </div>
+        {% endif %}
+        <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" placeholder="doctor@example.com" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Doctor Password</label>
+            <input type="password" class="form-control" name="password" placeholder="Set a password" required>
+        </div>
+        <div class="col-md-12">
+            <label class="form-label">Availability</label>
+            <select class="form-select" name="availability">
+                <option value="1">Available</option>
+                <option value="0">Unavailable</option>
+            </select>
+        </div>
     </div>
     <button type="submit" class="btn btn-primary">Add Doctor</button>
 </form>
@@ -52,16 +61,16 @@
         </tr>
     </thead>
     <tbody>
-        {% for d in doctors if d[7] == 1 %}
+        {% for d in doctors if d.is_active == 1 %}
         <tr>
-            <td>{{ d[0] }}</td>
-            <td>{{ d[1] }}</td>
-            <td>{{ d[2] }}</td>
-            <td>{{ d[3] or '' }}</td>
-            <td>{{ d[4] or '' }}</td>
-            <td>{{ d[5] or '' }}</td>
+            <td>{{ d.id }}</td>
+            <td>{{ d.name }}</td>
+            <td>{{ d.specialization }}</td>
+            <td>{{ d.location or '' }}</td>
+            <td>{{ d.hospital or '' }}</td>
+            <td>{{ d.email or '' }}</td>
             <td>
-                <form method="POST" action="{{ url_for('delete_doctor', id=d[0]) }}" class="d-inline">
+                <form method="POST" action="{{ url_for('delete_doctor', id=d.id) }}" class="d-inline">
                     {{ csrf_input() }}
                     <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this doctor?');">Delete</button>
                 </form>
@@ -89,23 +98,23 @@
         </tr>
     </thead>
     <tbody>
-        {% for d in doctors if d[7] == 0 %}
+        {% for d in doctors if d.is_active == 0 %}
         <tr>
-            <td>{{ d[0] }}</td>
-            <td>{{ d[1] }}</td>
-            <td>{{ d[2] }}</td>
-            <td>{{ d[3] or '' }}</td>
-            <td>{{ d[4] or '' }}</td>
-            <td>{{ d[5] or '' }}</td>
+            <td>{{ d.id }}</td>
+            <td>{{ d.name }}</td>
+            <td>{{ d.specialization }}</td>
+            <td>{{ d.location or '' }}</td>
+            <td>{{ d.hospital or '' }}</td>
+            <td>{{ d.email or '' }}</td>
             <td>
-                    <form method="POST" action="{{ url_for('restore_doctor', id=d[0]) }}" class="d-inline">
-                            {{ csrf_input() }}
-                        <button type="submit" class="btn btn-success btn-sm">Restore</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('purge_doctor', id=d[0]) }}" class="d-inline">
-                            {{ csrf_input() }}
-                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently remove this doctor (and any related appointments)?');">Remove</button>
-                    </form>
+                <form method="POST" action="{{ url_for('restore_doctor', id=d.id) }}" class="d-inline">
+                    {{ csrf_input() }}
+                    <button type="submit" class="btn btn-success btn-sm">Restore</button>
+                </form>
+                <form method="POST" action="{{ url_for('purge_doctor', id=d.id) }}" class="d-inline">
+                    {{ csrf_input() }}
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently remove this doctor (and any related appointments)?');">Remove</button>
+                </form>
             </td>
         </tr>
         {% else %}
@@ -117,6 +126,7 @@
 </table>
 
 <h3>Audit Log (deleted doctors)</h3>
+<div class="table-responsive">
 <table class="table table-sm">
     <thead>
         <tr>
@@ -131,11 +141,11 @@
             {% if audit %}
                 {% for a in audit %}
                 <tr>
-                    <td>{{ a[0] }}</td>
-                    <td>{{ a[2] }}</td>
-                    <td>{{ a[3] }}</td>
-                    <td>{{ a[4] }}</td>
-                    <td>{{ a[5] }}</td>
+                    <td>{{ a.id }}</td>
+                    <td>{{ a.doctor_name }}</td>
+                    <td>{{ a.action }}</td>
+                    <td>{{ a.admin_username }}</td>
+                    <td>{{ a.timestamp }}</td>
                 </tr>
                 {% endfor %}
             {% else %}
@@ -145,8 +155,5 @@
             {% endif %}
     </tbody>
 </table>
-<<<<<<< HEAD
+</div>
 {% endblock %}
-=======
-{% endblock %}
->>>>>>> 12fc99b8f7a0c6b580045efe6c8a177d9dde208c

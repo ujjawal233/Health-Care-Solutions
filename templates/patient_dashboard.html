@@ -1,0 +1,114 @@
+{% extends 'base.html' %}
+
+{% block title %}Patient Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Patient Dashboard</h2>
+        <p class="text-muted">Manage appointments, reports, and prescriptions.</p>
+    </div>
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger">Sign Out</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card border-primary h-100">
+            <div class="card-body">
+                <p class="text-muted mb-2">Upcoming Appointments</p>
+                <h3>{{ upcoming_count }}</h3>
+                <p class="mb-0">Next appointment: <strong>{{ next_appointment or 'None' }}</strong></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-success h-100">
+            <div class="card-body">
+                <p class="text-muted mb-2">Reports Available</p>
+                <h3>{{ report_count }}</h3>
+                <p class="mb-0">Click below to download latest report.</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-info h-100">
+            <div class="card-body">
+                <p class="text-muted mb-2">Notifications</p>
+                <h3>{{ notifications|length }}</h3>
+                <p class="mb-0">Unread messages: <strong>{{ unread_notifications }}</strong></p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row gy-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <h5 class="card-title mb-0">Upcoming Appointments</h5>
+                    <p class="small text-muted">Manage your schedule with one click.</p>
+                </div>
+                <a href="{{ url_for('export_patient_report') }}" class="btn btn-sm btn-outline-secondary">Export CSV</a>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Doctor</th>
+                            <th>Specialization</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appt in appointments %}
+                        <tr>
+                            <td>{{ appt['appointment_date'] }}</td>
+                            <td>{{ appt['doctor_name'] }}</td>
+                            <td>{{ appt['specialization'] }}</td>
+                            <td>{{ appt['location'] }}</td>
+                            <td><span class="badge bg-{{ 'success' if appt['status'] == 'completed' else 'warning' if appt['status'] == 'scheduled' else 'danger' }}">{{ appt['status'] }}</span></td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="5" class="text-center">No appointments scheduled.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Notifications</h5>
+            </div>
+            <div class="list-group list-group-flush">
+                {% for note in notifications %}
+                <div class="list-group-item d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="fw-semibold">{{ note['message'] }}</div>
+                        <small class="text-muted">{{ note['created_at'] }}</small>
+                    </div>
+                    {% if not note['is_read'] %}
+                    <span class="badge bg-primary rounded-pill">New</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="list-group-item text-center text-muted">No notifications</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Quick Actions</h5>
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for('appointments_calendar') }}" class="btn btn-primary w-100 mb-2">View Calendar</a>
+                <a href="{{ url_for('patient_reports') }}" class="btn btn-outline-secondary w-100">My Medical Reports</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

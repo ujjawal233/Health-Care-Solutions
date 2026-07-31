@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Analytics{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2>Analytics</h2>
+        <p class="text-muted">View appointment trends across specializations, doctors, and hospitals.</p>
+    </div>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">Back to Dashboard</a>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Top Specializations</h5>
+                <p class="text-muted">Appointments by specialization.</p>
+                <ul class="list-group list-group-flush">
+                    {% for row in appointment_counts %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ row['label'] or 'Unknown' }}
+                        <span class="badge bg-primary rounded-pill">{{ row['total'] }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted">No data available</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Top Doctors</h5>
+                <p class="text-muted">Appointments by doctor.</p>
+                <ul class="list-group list-group-flush">
+                    {% for row in doctor_counts %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ row['label'] or 'Unknown' }}
+                        <span class="badge bg-success rounded-pill">{{ row['total'] }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted">No data available</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Hospitals</h5>
+                <p class="text-muted">Appointments by hospital.</p>
+                <ul class="list-group list-group-flush">
+                    {% for row in hospital_counts %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ row['label'] or 'Unknown' }}
+                        <span class="badge bg-warning rounded-pill">{{ row['total'] }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-center text-muted">No data available</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title">Analytics Summary</h5>
+        <p class="text-muted">Use this overview to understand where appointments are concentrated.</p>
+    </div>
+</div>
+{% endblock %}
