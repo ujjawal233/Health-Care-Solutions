@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 
+{% block title %}Register Admin{% endblock %}
 {% block content %}
 <h2>Register New Admin</h2>
-<form method="POST">
+<form method="POST" action="{{ url_for('admin_register') }}">
     <div class="mb-3">
         <label class="form-label">Username</label>
         <input type="text" class="form-control" name="username" required>

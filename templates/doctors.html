@@ -1,8 +1,13 @@
 {% extends 'base.html' %}
 
+{% block title %}Manage Doctors{% endblock %}
 {% block content %}
-<h2>Doctors</h2>
-<form method="POST" action="/doctors">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Doctors</h2>
+    <a class="btn btn-secondary" href="{{ url_for('doctors_all') }}">View All</a>
+ </div>
+
+<form method="POST" action="{{ url_for('doctors') }}">
     <div class="mb-3">
         <label class="form-label">Name</label>
         <input type="text" class="form-control" name="name" required>
@@ -55,7 +60,10 @@
             <td>{{ d[4] or '' }}</td>
             <td>{{ d[5] or '' }}</td>
             <td>
-                <a href="/delete_doctor/{{ d[0] }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this doctor?');">Delete</a>
+                <form method="POST" action="{{ url_for('delete_doctor', id=d[0]) }}" class="d-inline">
+                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                    <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Delete this doctor?');">Delete</button>
+                </form>
             </td>
         </tr>
         {% else %}
@@ -89,8 +97,14 @@
             <td>{{ d[4] or '' }}</td>
             <td>{{ d[5] or '' }}</td>
             <td>
-                <a href="/restore_doctor/{{ d[0] }}" class="btn btn-success btn-sm">Restore</a>
-                <a href="/purge_doctor/{{ d[0] }}" class="btn btn-danger btn-sm" onclick="return confirm('Permanently remove this doctor (and any related appointments)?');">Remove</a>
+                    <form method="POST" action="{{ url_for('restore_doctor', id=d[0]) }}" class="d-inline">
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                        <button type="submit" class="btn btn-success btn-sm">Restore</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('purge_doctor', id=d[0]) }}" class="d-inline">
+                        {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Permanently remove this doctor (and any related appointments)?');">Remove</button>
+                    </form>
             </td>
         </tr>
         {% else %}
@@ -113,21 +127,21 @@
         </tr>
     </thead>
     <tbody>
-        {% if audit %}
-            {% for a in audit %}
-            <tr>
-                <td>{{ a[0] }}</td>
-                <td>{{ a[2] }}</td>
-                <td>{{ a[3] }}</td>
-                <td>{{ a[4] }}</td>
-                <td>{{ a[5] }}</td>
-            </tr>
-            {% endfor %}
-        {% else %}
-            <tr>
-                <td colspan="5" class="text-center">No audit activity yet.</td>
-            </tr>
-        {% endif %}
+            {% if audit %}
+                {% for a in audit %}
+                <tr>
+                    <td>{{ a[0] }}</td>
+                    <td>{{ a[2] }}</td>
+                    <td>{{ a[3] }}</td>
+                    <td>{{ a[4] }}</td>
+                    <td>{{ a[5] }}</td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="5" class="text-center">No audit activity yet.</td>
+                </tr>
+            {% endif %}
     </tbody>
 </table>
 <<<<<<< HEAD

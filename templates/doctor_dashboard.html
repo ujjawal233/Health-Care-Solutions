@@ -1,9 +1,14 @@
 {% extends 'base.html' %}
 
+{% block title %}Doctor Dashboard{% endblock %}
 {% block content %}
-<h2>Doctor Dashboard</h2>
-<p>Logged in as <strong>{{ doctor_name }}</strong> (Hospital: {{ doctor_hospital }})</p>
-<table class="table">
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>Doctor Dashboard</h2>
+    <div class="text-muted">Logged in as <strong>{{ doctor_name }}</strong> ({{ doctor_hospital }})</div>
+ </div>
+
+<div class="table-responsive">
+<table class="table table-striped align-middle">
     <thead>
         <tr>
             <th>ID</th>
@@ -11,6 +16,7 @@
             <th>Email</th>
             <th>Date</th>
             <th>Location</th>
+            <th>Action</th>
         </tr>
     </thead>
     <tbody>
@@ -22,8 +28,11 @@
             <td>{{ appt[4] }}</td>
             <td>{{ appt[5] }}</td>
             <td>
-                <a href="/doctor_edit/{{ appt[0] }}" class="btn btn-sm btn-primary">Edit</a>
-                <a href="/doctor_cancel/{{ appt[0] }}" class="btn btn-sm btn-danger" onclick="return confirm('Cancel this appointment?');">Cancel</a>
+                <a href="{{ url_for('doctor_edit', id=appt[0]) }}" class="btn btn-sm btn-primary">Edit</a>
+                <form method="POST" action="{{ url_for('doctor_cancel', id=appt[0]) }}" class="d-inline">
+                    {% if csrf_token is defined %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endif %}
+                    <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Cancel this appointment?');">Cancel</button>
+                </form>
             </td>
         </tr>
         {% else %}
@@ -33,4 +42,6 @@
         {% endfor %}
     </tbody>
 </table>
+</div>
+
 {% endblock %}

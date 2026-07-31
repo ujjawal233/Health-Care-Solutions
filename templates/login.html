@@ -1,8 +1,9 @@
 {% extends 'base.html' %}
 
+{% block title %}Admin Login{% endblock %}
 {% block content %}
 <h2>Admin Login</h2>
-<form method="POST">
+<form method="POST" action="{{ url_for('login') }}" class="w-100 mw-50">
     <div class="mb-3">
         <label class="form-label">Username</label>
         <input type="text" class="form-control" name="username" required>

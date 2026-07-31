@@ -1,41 +1,49 @@
 {% extends 'base.html' %}
 
+{% block title %}Book Appointment{% endblock %}
 {% block content %}
-<h1>Welcome to HealthCare+</h1>
-<p>Select a doctor and book an appointment.</p>
-<form method="POST" action="/book">
-    <div class="mb-3">
-        <label class="form-label">Name</label>
-        <input type="text" class="form-control" name="name" required>
+<header class="mb-4">
+    <h1 class="h3">Welcome to HealthCare+</h1>
+    <p class="text-muted">Select a doctor and book an appointment.</p>
+</header>
+
+<form method="POST" action="{{ url_for('book') }}" class="needs-validation" novalidate>
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label class="form-label">Name</label>
+            <input type="text" class="form-control" name="name" required aria-required="true">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" required aria-required="true">
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Specialization</label>
+            <select class="form-select" id="specialization" name="specialization" required aria-label="Specialization">
+                <option value="" disabled selected>Select specialization</option>
+                {% for spec in specializations %}
+                    <option value="{{ spec }}">{{ spec }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Doctor</label>
+            <select class="form-select" name="doctor" id="doctor" required aria-label="Doctor selection">
+                <option value="" disabled selected>Select specialization first</option>
+            </select>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Location (near you)</label>
+            <input type="text" class="form-control" id="location" name="location" placeholder="Type your preferred location" required>
+        </div>
+        <div class="col-md-6">
+            <label class="form-label">Date</label>
+            <input type="date" class="form-control" name="date" id="appt_date" required aria-label="Appointment date">
+        </div>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Email</label>
-        <input type="email" class="form-control" name="email" required>
+    <div class="mt-3">
+        <button type="submit" class="btn btn-primary">Book</button>
     </div>
-    <div class="mb-3">
-        <label class="form-label">Specialization</label>
-        <select class="form-select" id="specialization" required>
-            <option value="" disabled selected>Select specialization</option>
-            {% for spec in specializations %}
-                <option value="{{ spec }}">{{ spec }}</option>
-            {% endfor %}
-        </select>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Doctor</label>
-        <select class="form-select" name="doctor" id="doctor" required>
-            <option value="" disabled selected>Select specialization first</option>
-        </select>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Location (near you)</label>
-        <input type="text" class="form-control" id="location" name="location" placeholder="Type your preferred location" required>
-    </div>
-    <div class="mb-3">
-        <label class="form-label">Date</label>
-        <input type="date" class="form-control" name="date" required>
-    </div>
-    <button type="submit" class="btn btn-primary">Book</button>
 </form>
 
 <script>
@@ -91,4 +99,15 @@
     if (specializationSelect.value) {
         populateDoctors();
     }
+
+    // set min date for date input to today's date
+    document.addEventListener('DOMContentLoaded', function(){
+        const dateInput = document.getElementById('appt_date');
+        if (dateInput) {
+            const today = new Date().toISOString().split('T')[0];
+            dateInput.setAttribute('min', today);
+        }
+    });
 </script>
+
+{% endblock %}
