@@ -12,6 +12,7 @@
             <th>Email</th>
             <th>Doctor</th>
             <th>Specialization</th>
+            <th>Location</th>
             <th>Date</th>
             <th>Action</th>
         </tr>
@@ -23,6 +24,7 @@
             <td>{{ appt[1] }}</td>
             <td>{{ appt[2] }}</td>
             <td>{{ appt[3] }}</td>
+            <td>{{ appt[6] }}</td>
             <td>{{ appt[5] }}</td>
             <td>{{ appt[4] }}</td>
             <td><a href="/delete/{{ appt[0] }}" class="btn btn-danger btn-sm">Delete</a></td>
@@ -30,5 +32,24 @@
         {% endfor %}
     </tbody>
 </table>
+<h3>Hospital Reports</h3>
+<table class="table table-sm">
+    <thead>
+        <tr>
+            <th>Hospital</th>
+            <th>Appointments</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for h in hospital_report %}
+        <tr>
+            <td>{{ h[0] }}</td>
+            <td>{{ h[1] }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
 <a href="/doctors" class="btn btn-secondary">Manage Doctors</a>
+<a href="/doctors_all" class="btn btn-secondary">View All Doctors</a>
 {% endblock %}

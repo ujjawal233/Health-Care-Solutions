@@ -2,7 +2,7 @@
 
 {% block content %}
 <h2>Doctors</h2>
-<form method="POST">
+<form method="POST" action="/doctors">
     <div class="mb-3">
         <label class="form-label">Name</label>
         <input type="text" class="form-control" name="name" required>
@@ -11,25 +11,123 @@
         <label class="form-label">Specialization</label>
         <input type="text" class="form-control" name="specialization" required>
     </div>
+    <div class="mb-3">
+        <label class="form-label">Location</label>
+        <input type="text" class="form-control" name="location" placeholder="e.g. Building A, Room 302">
+    </div>
+    {% if session.get('admin_role') == 'super' %}
+    <div class="mb-3">
+        <label class="form-label">Hospital</label>
+        <input type="text" class="form-control" name="hospital" placeholder="Assign to hospital (optional)">
+    </div>
+    {% endif %}
+    <div class="mb-3">
+        <label class="form-label">Email</label>
+        <input type="email" class="form-control" name="email" placeholder="doctor@example.com" required>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Doctor Password</label>
+        <input type="password" class="form-control" name="password" placeholder="Set a password" required>
+    </div>
     <button type="submit" class="btn btn-primary">Add Doctor</button>
 </form>
 <hr>
+<h3>Active Doctors</h3>
 <table class="table">
     <thead>
         <tr>
             <th>ID</th>
             <th>Name</th>
             <th>Specialization</th>
+            <th>Location</th>
+            <th>Hospital</th>
+            <th>Email</th>
+            <th>Action</th>
         </tr>
     </thead>
     <tbody>
-        {% for d in doctors %}
+        {% for d in doctors if d[7] == 1 %}
         <tr>
             <td>{{ d[0] }}</td>
             <td>{{ d[1] }}</td>
             <td>{{ d[2] }}</td>
+            <td>{{ d[3] or '' }}</td>
+            <td>{{ d[4] or '' }}</td>
+            <td>{{ d[5] or '' }}</td>
+            <td>
+                <a href="/delete_doctor/{{ d[0] }}" class="btn btn-danger btn-sm" onclick="return confirm('Delete this doctor?');">Delete</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" class="text-center">No active doctors found.</td>
         </tr>
         {% endfor %}
+    </tbody>
+</table>
+
+<h3>Inactive Doctors</h3>
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Specialization</th>
+            <th>Location</th>
+            <th>Hospital</th>
+            <th>Email</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for d in doctors if d[7] == 0 %}
+        <tr>
+            <td>{{ d[0] }}</td>
+            <td>{{ d[1] }}</td>
+            <td>{{ d[2] }}</td>
+            <td>{{ d[3] or '' }}</td>
+            <td>{{ d[4] or '' }}</td>
+            <td>{{ d[5] or '' }}</td>
+            <td>
+                <a href="/restore_doctor/{{ d[0] }}" class="btn btn-success btn-sm">Restore</a>
+                <a href="/purge_doctor/{{ d[0] }}" class="btn btn-danger btn-sm" onclick="return confirm('Permanently remove this doctor (and any related appointments)?');">Remove</a>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan="7" class="text-center">No inactive doctors.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h3>Audit Log (deleted doctors)</h3>
+<table class="table table-sm">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Doctor</th>
+            <th>Action</th>
+            <th>By</th>
+            <th>When</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if audit %}
+            {% for a in audit %}
+            <tr>
+                <td>{{ a[0] }}</td>
+                <td>{{ a[2] }}</td>
+                <td>{{ a[3] }}</td>
+                <td>{{ a[4] }}</td>
+                <td>{{ a[5] }}</td>
+            </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="5" class="text-center">No audit activity yet.</td>
+            </tr>
+        {% endif %}
     </tbody>
 </table>
 {% endblock %}
