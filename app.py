@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, session, flash, url_for
+from flask import Flask, render_template, request, redirect, session, flash, url_for, abort
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 import smtplib
@@ -7,6 +7,8 @@ import os
 import datetime
 import logging
 import re
+import secrets
+from markupsafe import Markup
 
 try:
     from dotenv import load_dotenv
@@ -34,6 +36,14 @@ DATABASE_PATH = os.path.join(os.path.dirname(__file__), 'healthcare.db')
 app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY') or os.urandom(24)
 
+# Session cookie hardening (can be relaxed in non-HTTPS dev environments via APP_ENV)
+if os.getenv('APP_ENV') == 'production':
+    app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SECURE=True,
+        SESSION_COOKIE_SAMESITE='Lax'
+    )
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s: %(message)s')
 logger = logging.getLogger('healthcare')
 
@@ -55,6 +65,39 @@ def get_db_connection():
         # older sqlite builds may not support PRAGMAs; fail silently
         pass
     return conn
+
+
+# ===================================================
+# CSRF helpers
+# ===================================================
+@app.context_processor
+def inject_csrf():
+    def csrf_token():
+        token = session.get('_csrf_token')
+        if not token:
+            token = secrets.token_urlsafe(32)
+            session['_csrf_token'] = token
+        return token
+
+    def csrf_input():
+        return Markup(f"<input type=\"hidden\" name=\"_csrf_token\" value=\"{csrf_token()}\">")
+
+    return dict(csrf_token=csrf_token, csrf_input=csrf_input)
+
+
+@app.before_request
+def validate_csrf():
+    # skip safe methods
+    if request.method in ('GET', 'HEAD', 'OPTIONS'):
+        return
+
+    # Skip CSRF for OAuth callbacks
+    if request.path.startswith('/login') and 'google' in request.path:
+        return
+
+    token = request.form.get('_csrf_token') or request.headers.get('X-CSRFToken')
+    if not token or token != session.get('_csrf_token'):
+        abort(400, description='Bad or missing CSRF token')
 
 
 # ===================================================
