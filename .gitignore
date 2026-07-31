@@ -1,2 +1,32 @@
-# created by virtualenv automatically
-*
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Database
+*.db
+healthcare.db
+
+# Environment Variables
+.env
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Build files
+dist/
+build/
+
+# Pytest
+.pytest_cache/
