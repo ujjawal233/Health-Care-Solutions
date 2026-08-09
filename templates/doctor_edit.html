@@ -3,6 +3,7 @@
 {% block content %}
 <h2>Edit Appointment</h2>
 <form method="POST">
+    {{ csrf_input() }}
     <div class="mb-3">
         <label class="form-label">Patient Name</label>
         <input type="text" class="form-control" value="{{ appointment.patient_name }}" disabled>

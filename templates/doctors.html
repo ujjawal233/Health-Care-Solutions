@@ -18,16 +18,19 @@
             <label class="form-label">Specialization</label>
             <input type="text" class="form-control" name="specialization" required>
         </div>
-        <div class="col-md-6">
+<div class="col-md-6">
             <label class="form-label">Location</label>
             <input type="text" class="form-control" name="location" placeholder="e.g. Building A, Room 302">
         </div>
-        {% if session.get('admin_role') == 'super' %}
         <div class="col-md-6">
             <label class="form-label">Hospital</label>
-            <input type="text" class="form-control" name="hospital" placeholder="Assign to hospital (optional)">
+            <select class="form-select" name="hospital" required>
+                <option value="">Select hospital</option>
+                {% for h in hospitals %}
+                <option value="{{ h }}">{{ h }}</option>
+                {% endfor %}
+            </select>
         </div>
-        {% endif %}
         <div class="col-md-6">
             <label class="form-label">Email</label>
             <input type="email" class="form-control" name="email" placeholder="doctor@example.com" required>

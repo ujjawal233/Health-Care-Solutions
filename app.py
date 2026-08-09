@@ -437,6 +437,43 @@ def init_db():
 
         migrate_legacy_appointments(cur)
 
+        # Safe, non-destructive backfill for existing appointment records.
+        # Populate doctor_hospital from the doctor record when available.
+        cur.execute('''
+            UPDATE appointments
+            SET doctor_hospital = (SELECT hospital FROM doctors WHERE doctors.id = appointments.doctor_id)
+            WHERE doctor_id IS NOT NULL
+              AND (doctor_hospital IS NULL OR TRIM(doctor_hospital) = '')
+        ''')
+        # Ensure doctor_id is populated from a matching doctor record where possible.
+        cur.execute('''
+            UPDATE appointments
+            SET doctor_id = (
+                SELECT d.id FROM doctors d
+                WHERE d.name = appointments.doctor
+                  AND (appointments.doctor_hospital IS NULL OR d.hospital = appointments.doctor_hospital)
+                LIMIT 1
+            )
+            WHERE doctor_id IS NULL AND doctor IS NOT NULL AND TRIM(doctor) <> ''
+        ''')
+        # Default empty/NULL status to 'scheduled'.
+        cur.execute('''
+            UPDATE appointments
+            SET status = 'scheduled'
+            WHERE status IS NULL OR TRIM(status) = ''
+        ''')
+
+        # Seed the hospitals table from existing, valid hospital values already
+        # present in doctors and admins (non-destructive, no duplicates).
+        cur.execute('''
+            INSERT OR IGNORE INTO hospitals (name)
+            SELECT DISTINCT TRIM(hospital) FROM doctors
+            WHERE hospital IS NOT NULL AND TRIM(hospital) <> ''
+            UNION
+            SELECT DISTINCT TRIM(hospital) FROM admins
+            WHERE hospital IS NOT NULL AND TRIM(hospital) <> ''
+        ''')
+
         cur.execute('CREATE INDEX IF NOT EXISTS idx_doctors_name ON doctors(name)')
         cur.execute('CREATE INDEX IF NOT EXISTS idx_doctors_hospital ON doctors(hospital)')
 
@@ -579,8 +616,9 @@ def book():
 
     try:
         now = to_iso(utcnow())
-        appointment_id, _ = execute_db('INSERT INTO appointments (patient_id, doctor_id, status, appointment_date, location, notes, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?)',
-                                       (patient_id, doctor_id, 'scheduled', appointment_date, location, notes, now, now))
+        doctor_hospital = doctor['hospital'] or ''
+        appointment_id, _ = execute_db('INSERT INTO appointments (patient_id, doctor_id, doctor_hospital, status, appointment_date, location, notes, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?)',
+                                       (patient_id, doctor_id, doctor_hospital, 'scheduled', appointment_date, location, notes, now, now))
         record_audit(email, 'patient', 'book_appointment', str(appointment_id), request.remote_addr or '', request.user_agent.string or '')
         execute_db('INSERT INTO notifications (recipient, recipient_role, message, created_at) VALUES (?,?,?,?)',
                    (email, 'patient', f'Appointment booked with Dr. {doctor["name"]} on {appointment_date}.', now))
@@ -790,6 +828,45 @@ def doctor_edit(id):
 
     appointment = dict(id=appt['id'], patient_name=patient['name'], patient_email=patient['email'], appointment_date=appt['appointment_date'], location=appt['location'], status=appt['status'], notes=appt['notes'])
     return render_template('doctor_edit.html', appointment=appointment)
+
+
+@app.route('/doctor_update_status/<int:id>', methods=['POST'])
+def doctor_update_status(id):
+    if 'doctor' not in session:
+        return redirect('/doctor_login')
+
+    appointment = query_db('SELECT id, doctor_id, doctor_hospital, status FROM appointments WHERE id=?', (id,), one=True)
+    if not appointment:
+        flash('Appointment not found.')
+        return redirect('/doctor_dashboard')
+
+    # Authorization: the appointment must belong to the logged-in doctor.
+    if appointment['doctor_id'] != session.get('doctor_id'):
+        flash('You are not authorized to modify this appointment.')
+        return redirect('/doctor_dashboard')
+
+    # Also verify hospital matches when both are present (extra safeguard).
+    doctor = query_db('SELECT hospital FROM doctors WHERE id=?', (session.get('doctor_id'),), one=True)
+    session_hospital = session.get('doctor_hospital') or (doctor['hospital'] if doctor else None)
+    if appointment['doctor_hospital'] and session_hospital and appointment['doctor_hospital'] != session_hospital:
+        flash('You are not authorized to modify an appointment at another hospital.')
+        return redirect('/doctor_dashboard')
+
+    new_status = request.form.get('status', '').strip().lower()
+    valid_statuses = ('scheduled', 'completed', 'cancelled')
+    if new_status not in valid_statuses:
+        flash('Invalid appointment status. Choose Scheduled, Completed, or Cancelled.')
+        return redirect('/doctor_dashboard')
+
+    try:
+        execute_db('UPDATE appointments SET status=?, updated_at=? WHERE id=?', (new_status, to_iso(utcnow()), id))
+        execute_db('INSERT INTO notifications (recipient, recipient_role, message, created_at) VALUES (?,?,?,?)',
+                   (session.get('doctor'), 'doctor', f'Appointment {id} status updated to {new_status}.', to_iso(utcnow())))
+        flash(f'Appointment status updated to {new_status}.')
+    except Exception as exc:
+        logger.exception('Failed to update appointment %s status: %s', id, exc)
+        flash('Failed to update appointment status.')
+    return redirect('/doctor_dashboard')
 
 
 @app.route('/user_login', methods=['GET', 'POST'])
@@ -1282,16 +1359,23 @@ def doctors():
         return redirect('/login')
 
     if request.method == 'POST':
-        hospital = session.get('hospital', 'Default Hospital')
-        if session.get('admin_role') == 'super':
-            hospital = request.form.get('hospital', hospital).strip() or hospital
-
+        # Hospital must be explicitly selected by the admin from the
+        # predefined hospitals table. No silent fallback to a default value.
+        hospital = request.form.get('hospital', '').strip()
         name = request.form.get('name', '').strip()
         specialization = request.form.get('specialization', '').strip()
         location = request.form.get('location', '').strip()
         email = request.form.get('email', '').strip()
         password = request.form.get('password', '')
         availability = request.form.get('availability', '1')
+
+        if not hospital:
+            flash('Please select a hospital for the doctor')
+            return redirect('/doctors')
+        hospital_exists = query_db('SELECT id FROM hospitals WHERE name=?', (hospital,), one=True)
+        if not hospital_exists:
+            flash('Selected hospital is not valid. Please choose from the list.')
+            return redirect('/doctors')
 
         if not all([name, specialization, email, password]):
             flash('Please fill all required doctor fields')
@@ -1322,7 +1406,9 @@ def doctors():
     audit = query_db('SELECT id, doctor_id, doctor_name, action, admin_username, timestamp FROM doctor_audit WHERE doctor_hospital=? ORDER BY timestamp DESC LIMIT 25', (hospital,))
     doctors = [dict(id=r['id'], name=r['name'], specialization=r['specialization'], location=r['location'], hospital=r['hospital'], email=r['email'], is_active=r['is_active'], is_available=r['is_available'], availability_schedule=r['availability_schedule']) for r in data]
     audit = [dict(id=r['id'], doctor_id=r['doctor_id'], doctor_name=r['doctor_name'], action=r['action'], admin_username=r['admin_username'], timestamp=r['timestamp']) for r in audit]
-    return render_template('doctors.html', doctors=doctors, audit=audit)
+    hospitals = query_db('SELECT name FROM hospitals ORDER BY name')
+    hospital_names = [dict(r)['name'] for r in hospitals]
+    return render_template('doctors.html', doctors=doctors, audit=audit, hospitals=hospital_names)
 
 
 @app.errorhandler(404)

@@ -67,12 +67,17 @@
                     <td>{{ appt.patient }}</td>
                     <td><span class="badge bg-{{ 'success' if appt.status == 'completed' else 'warning' if appt.status == 'scheduled' else 'danger' }}">{{ appt.status }}</span></td>
                     <td>{{ appt.location }}</td>
-                    <td>{{ appt.notes or '—' }}</td>
+<td>{{ appt.notes or '—' }}</td>
                     <td>
                         <a href="{{ url_for('doctor_edit', id=appt.id) }}" class="btn btn-sm btn-primary">Edit</a>
-                        <form method="POST" action="{{ url_for('doctor_cancel', id=appt.id) }}" class="d-inline">
+                        <form method="POST" action="{{ url_for('doctor_update_status', id=appt.id) }}" class="d-inline-flex align-items-center gap-1">
                             {{ csrf_input() }}
-                            <button type="submit" class="btn btn-sm btn-danger">Cancel</button>
+                            <select name="status" class="form-select form-select-sm" aria-label="Appointment status">
+                                <option value="scheduled" {% if appt.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                                <option value="completed" {% if appt.status == 'completed' %}selected{% endif %}>Completed</option>
+                                <option value="cancelled" {% if appt.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                            </select>
+                            <button type="submit" class="btn btn-sm btn-success">Save</button>
                         </form>
                     </td>
                 </tr>
